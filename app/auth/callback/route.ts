@@ -1,13 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { createClientDeSessaoAposOAuth } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { ensureTenantForUser, vinculoAtivo } from "@/lib/auth/provision";
 import { acessoFoiRevogado } from "@/lib/auth/vinculo-revogado";
 import { decidirConviteDoSignup } from "@/lib/auth/convite-no-signup";
 import { modoDeCadastro } from "@/lib/auth/politica-de-cadastro";
 import { aplicarConvite } from "@/lib/auth/aplicar-convite";
+import { respostaDePonte } from "@/lib/auth/ponte-de-volta";
 import { safeNext } from "@/lib/auth/safe-next";
 import { audit } from "@/lib/audit";
+import { marcaDaSaida } from "@/lib/branding/saida";
 import { env } from "@/lib/env";
 
 /**
@@ -49,6 +51,24 @@ import { env } from "@/lib/env";
  * onboarding), aqui há duas populações. O que os dois compartilham de verdade —
  * `decidirConviteDoSignup`, `aplicarConvite`, `ensureTenantForUser` — já está
  * compartilhado.
+ *
+ * ─── Por que o SUCESSO não sai daqui por 302 (issue #1646) ──────────────────
+ *
+ * A falha fecha em `/login`, e a tela de entrada é pública: um 302 para lá
+ * funciona. O SUCESSO vai para tela AUTENTICADA, e aí o 302 é o defeito: o salto
+ * final ainda pertence à cadeia de navegação que começou em `accounts.google.com`,
+ * o cookie de sessão é `sameSite: "strict"` e não viaja num initiator cross-site.
+ * O `proxy.ts` não enxerga sessão e manda para `/login?next=%2Fapp`, embora a
+ * sessão esteja criada (o relato da issue: `auth.sessions` ganha a linha e
+ * `last_sign_in_at` atualiza). Recarregando, a pessoa está logada — o login não
+ * falhou, só pareceu.
+ *
+ * Por isso os destinos autenticados saem pela PONTE (`lib/auth/ponte-de-volta.ts`):
+ * um documento same-origin que segue por `location.replace`, com initiator nosso,
+ * e o cookie Strict volta a viajar. Os cookies continuam `Strict` — o que era para
+ * afrouxar seria o cookie de sessão do produto inteiro, e não é isso que a tela
+ * quebrada pede. O destino entregue à ponte é sempre o valor já filtrado por
+ * `safeNext`: nenhum `next` cru chega ao documento.
  */
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
@@ -60,7 +80,18 @@ export async function GET(request: NextRequest) {
   // NUNCA usar url.origin aqui: é derivado do header Host, que o proxy/container
   // pode entregar como o bind interno (ex.: 0.0.0.0:3000) em vez do domínio
   // público — o link de recovery quebra silenciosamente para o usuário final.
-  const redirectTo = (path: string) => NextResponse.redirect(new URL(path, env.NEXT_PUBLIC_APP_URL));
+  const redirectTo = (path: string) =>
+    NextResponse.redirect(new URL(path, env.NEXT_PUBLIC_APP_URL));
+
+  // A volta para uma tela que EXIGE sessão. Toda saída de sucesso desta rota
+  // passa por aqui; o 302 fica reservado para as telas públicas (`/login` e a de
+  // aceite de convite), onde ele funciona. Trocar uma destas chamadas de volta
+  // para `redirectTo` reintroduz a #1646 inteira — e não apareceria em teste que
+  // só olhasse o destino final, porque o destino não muda: muda quem o inicia.
+  const paraTelaAutenticada = async (path: string) => {
+    const marca = await marcaDaSaida(null);
+    return respostaDePonte(path, marca.nome, "Voltando para o sistema…");
+  };
 
   // O Google devolve `error=access_denied` quando a pessoa fecha a tela de
   // consentimento. Não é falha do sistema, e tratar como falha manda a pessoa
@@ -87,12 +118,9 @@ export async function GET(request: NextRequest) {
     return redirectTo("/login?error=entrada_com_google");
   }
 
-  // Jar Lax, de propósito — ver `createClientDeSessaoAposOAuth`: o cookie de
-  // sessão gravado aqui ainda precisa sobreviver ao PRÓXIMO salto (o redirect
-  // deste próprio route para /app ou /onboarding), que continua dentro da
-  // mesma cadeia cross-site que saiu para o Google. Strict não sobrevive nem a
-  // esse salto interno — medido, não suposto.
-  const supabase = await createClientDeSessaoAposOAuth();
+  // O cliente de sempre (jar Strict): o verificador já viajou até aqui, e é este
+  // que grava o cookie de SESSÃO.
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data?.user) {
@@ -155,7 +183,9 @@ export async function GET(request: NextRequest) {
       metadata: { provider: "google" },
       requestId,
     });
-    return redirectTo(safeNext(next, "/app"));
+    // ENTRADA: o destino é `/app` (ou o `next` pedido) — tela COM sessão, logo
+    // ponte e não 302 (issue #1646).
+    return await paraTelaAutenticada(safeNext(next, "/app"));
   }
 
   // TERCEIRA população, e ela não estava no desenho: quem TEVE organização e
@@ -202,7 +232,8 @@ export async function GET(request: NextRequest) {
       payload: decisao.payload,
       requestId,
     });
-    if (aceite.ok) return redirectTo("/app");
+    // Convite aceito: a pessoa cai autenticada no app, pela ponte.
+    if (aceite.ok) return await paraTelaAutenticada("/app");
 
     // Convite revogado, ou banco fora: a tela de aceite continua existindo e
     // sabe explicar cada caso.
@@ -233,7 +264,7 @@ export async function GET(request: NextRequest) {
     });
     // A sessão JÁ está firmada. Mandar para `/login` deixava a pessoa logada e
     // sem organização, sem caminho de volta — ver `recoverOrganization.ts`.
-    return redirectTo("/get-started");
+    return await paraTelaAutenticada("/get-started");
   }
 
   void audit({
@@ -243,5 +274,5 @@ export async function GET(request: NextRequest) {
     requestId,
   });
 
-  return redirectTo("/onboarding/welcome");
+  return await paraTelaAutenticada("/onboarding/welcome");
 }
