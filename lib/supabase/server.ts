@@ -93,3 +93,40 @@ export async function createClient() {
 export async function createClientDeEntradaComGoogle() {
   return clienteDeServidor("lax");
 }
+
+/**
+ * Cliente para TROCAR o `code` por sessão em `/auth/callback` (volta do Google).
+ *
+ * ─── O gap que o comentário acima não cobria ─────────────────────────────────
+ *
+ * O comentário de `createClientDeEntradaComGoogle` dizia que o `createClient`
+ * de sempre (Strict) era seguro aqui porque "o verificador já viajou até
+ * aqui" — mas a resposta de `/auth/callback` que GRAVA o cookie de sessão é,
+ * ela mesma, um 307 para `/app` (ou `/onboarding`), e essa navegação AINDA faz
+ * parte da MESMA cadeia de redirects que saiu para `accounts.google.com` e
+ * voltou via `xstadmmlzdhqftnxjvjy.supabase.co`. O Chrome marca a cadeia
+ * inteira como cross-site a partir do primeiro salto que sai do site — e ela
+ * só deixa de ser cross-site quando a navegação TERMINA (uma resposta não-redirect).
+ * Um cookie `Strict` gravado NO MEIO dessa cadeia não sobrevive nem ao PRÓXIMO
+ * salto interno, mesmo sendo `localhost:3001 → localhost:3001`.
+ *
+ * Medido em 2026-09-27 com o DevTools: `/auth/callback` grava
+ * `sb-deskcomm-auth.0`/`.1` (Strict) na resposta; a requisição SEGUINTE
+ * (`GET /app`, o próprio redirect deste route) chega ao servidor SEM esses
+ * cookies — só os quatro verificadores `Lax` da ida. `proxy.ts` não acha
+ * usuário, devolve para `/login`, e a sessão criada segundos antes (visível em
+ * `auth.sessions`, nunca com `refreshed_at`) nunca é usada por navegador nenhum.
+ *
+ * A mesma classe de defeito da issue #1388 (documentada acima), um passo
+ * adiante: lá era o verificador que não sobrevivia à IDA; aqui é a sessão que
+ * não sobrevive ao ÚLTIMO salto da VOLTA. Mesmo remédio, mesmo motivo.
+ *
+ * `/auth/confirm` tem o mesmo gap (ver o comentário no topo daquele arquivo) e
+ * foi deixado como está de propósito, porque o link de confirmação por e-mail
+ * é aberto por um CLIENTE DE E-MAIL — cross-site por natureza, gap estrutural
+ * que troca de formato de link resolve. Aqui não: o gap nasce inteiro DENTRO
+ * do nosso próprio redirect, sem precisar de um clique externo.
+ */
+export async function createClientDeSessaoAposOAuth() {
+  return clienteDeServidor("lax");
+}

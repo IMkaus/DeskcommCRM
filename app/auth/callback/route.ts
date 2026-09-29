@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClientDeSessaoAposOAuth } from "@/lib/supabase/server";
 import { ensureTenantForUser, vinculoAtivo } from "@/lib/auth/provision";
 import { acessoFoiRevogado } from "@/lib/auth/vinculo-revogado";
 import { decidirConviteDoSignup } from "@/lib/auth/convite-no-signup";
@@ -87,9 +87,12 @@ export async function GET(request: NextRequest) {
     return redirectTo("/login?error=entrada_com_google");
   }
 
-  // O cliente de sempre (jar Strict): o verificador já viajou até aqui, e é este
-  // que grava o cookie de SESSÃO.
-  const supabase = await createClient();
+  // Jar Lax, de propósito — ver `createClientDeSessaoAposOAuth`: o cookie de
+  // sessão gravado aqui ainda precisa sobreviver ao PRÓXIMO salto (o redirect
+  // deste próprio route para /app ou /onboarding), que continua dentro da
+  // mesma cadeia cross-site que saiu para o Google. Strict não sobrevive nem a
+  // esse salto interno — medido, não suposto.
+  const supabase = await createClientDeSessaoAposOAuth();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data?.user) {

@@ -15,6 +15,12 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; reset?: string; error?: string }>;
 }) {
   const { next, reset, error } = await searchParams;
+  // A tela de "Você foi convidado" (`/team/accept-invite/[token]`) manda quem
+  // ainda não tem conta para cá via "Fazer login", só com `next`. Sem extrair o
+  // token daqui, "Entrar com Google" perde o convite no caminho e provisiona
+  // uma organização fantasma para o convidado — o mesmo defeito que
+  // `lib/auth/convite-no-signup.ts` documenta e que aqui não estava coberto.
+  const conviteDoNext = next?.match(/^\/team\/accept-invite\/([^/?#]+)/)?.[1];
   // Fora da árvore de `app/app/layout.tsx` — sem `IdiomaProvider` do lado do
   // servidor (o cliente já tem o seu, montado em `app/(public)/layout.tsx`).
   // Quase nunca há sessão aqui (é a própria tela de entrar), mas resolve do
@@ -139,7 +145,7 @@ export default async function LoginPage({
         </div>
       )}
       <LoginForm next={next} />
-      <EntrarComGoogle next={next} />
+      <EntrarComGoogle next={next} convite={conviteDoNext} />
       <div className="space-y-2 text-center text-sm">
         <p>
           <Link
@@ -152,7 +158,7 @@ export default async function LoginPage({
         <p className="text-muted-foreground">
           {t("Não tem conta?")}{" "}
           <Link
-            href="/signup"
+            href={conviteDoNext ? `/signup?invite=${encodeURIComponent(conviteDoNext)}` : "/signup"}
             className="font-medium text-foreground underline underline-offset-4"
           >
             {t("Criar conta")}
