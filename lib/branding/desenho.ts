@@ -99,5 +99,5 @@ export const LOGOTIPO = {
  */
 export const CORES_DA_MARCA = {
   claro: { simbolo: "#506d48", nome: "#1c1a16", sufixo: "#5d594f" },
-  escuro: { simbolo: "#82a077", nome: "#f5f4ef", sufixo: "#8e8b7f" },
+  escuro: { simbolo: "#82a077", nome: "#f0f4f9", sufixo: "#818c9a" },
 } as const;

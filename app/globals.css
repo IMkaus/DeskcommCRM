@@ -327,20 +327,25 @@
 }
 
 [data-theme="dark"] {
-  /* Surfaces (dark — drawn) */
-  --color-bg: #161510;
-  --color-surface: #1d1c17;
-  --color-surface-elevated: #272620;
+  /* Surfaces (dark — drawn). Cinza bem escuro, meio azulado (slate, hue
+     OKLCH ~253-258°, croma baixo ~0,012-0,015) — trocado do oliva quente
+     anterior (hue ~94-99°) mantendo a mesma luminância OKLCH por token
+     (bg/surface/elevated/text/muted/subtle/border/border-strong), para não
+     mexer na hierarquia de contraste. Nenhum par texto-sobre-fundo medido
+     (WCAG) piorou na troca — `text-muted` sobre `surface` segue ≥4,5:1. */
+  --color-bg: #11151a;
+  --color-surface: #181c22;
+  --color-surface-elevated: #21262d;
   --color-overlay: rgba(0, 0, 0, 0.55);
 
   /* Text (dark) */
-  --color-text: #f5f4ef;
-  --color-text-muted: #8e8b7f;
-  --color-text-subtle: #605e54;
+  --color-text: #f0f4f9;
+  --color-text-muted: #818c9a;
+  --color-text-subtle: #565f6a;
 
   /* Borders (dark) */
-  --color-border: #33312a;
-  --color-border-strong: #444239;
+  --color-border: #2b323a;
+  --color-border-strong: #3b434d;
 
   /* Accent stays same hex stops; default shifts up for dark contrast */
   --color-accent-50:  #f3f6f1;
@@ -355,22 +360,24 @@
   --color-accent-900: #2f3c2b;
   --color-accent-950: #171f15;
   --color-accent: var(--color-accent-400);
-  --color-accent-fg: #161510;
+  --color-accent-fg: #11151a;
   --color-accent-soft: rgba(130, 160, 119, 0.16);
   --color-accent-hover: var(--color-accent-300);
 
-  /* Neutrals — greige (11 stops, dark) */
-  --color-neutral-50:  #f5f4ef;
-  --color-neutral-100: #e6e4dc;
-  --color-neutral-200: #bbb8ac;
-  --color-neutral-300: #8e8b7f;
-  --color-neutral-400: #605e54;
-  --color-neutral-500: #444239;
-  --color-neutral-600: #33312a;
-  --color-neutral-700: #272620;
-  --color-neutral-800: #1d1c17;
-  --color-neutral-900: #161510;
-  --color-neutral-950: #0c0b08;
+  /* Neutrals — slate azulado (11 stops, dark). Mesma luminância OKLCH do
+     greige oliva anterior, hue girado para ~253-258° e croma baixo (ver nota
+     acima em `--color-bg`). */
+  --color-neutral-50:  #f0f4f9;
+  --color-neutral-100: #dee5ed;
+  --color-neutral-200: #afb9c6;
+  --color-neutral-300: #818c9a;
+  --color-neutral-400: #565f6a;
+  --color-neutral-500: #3b434d;
+  --color-neutral-600: #2b323a;
+  --color-neutral-700: #21262d;
+  --color-neutral-800: #181c22;
+  --color-neutral-900: #11151a;
+  --color-neutral-950: #080b0f;
 
   /* States (dark) */
   --color-success: #82a077;
@@ -817,7 +824,7 @@
      padrão da lib (#b1b1b7) ela dava 2,03:1 sobre o fundo claro — abaixo dos
      3:1 que a WCAG pede para elemento gráfico essencial, e no print do canvas
      ela some. `text-muted` é o único token que passa nos DOIS temas
-     (claro 6,63:1, escuro 5,35:1); `text-subtle` cairia para 2,81:1 no escuro. */
+     (claro 6,63:1, escuro 5,37:1); `text-subtle` cairia para 2,83:1 no escuro. */
   --xy-edge-stroke: var(--color-text-muted);
   --xy-edge-stroke-selected: var(--color-accent);
   /* A linha que segue o cursor enquanto se arrasta uma ligação lia a mesma var
