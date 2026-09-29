@@ -1,8 +1,10 @@
 import Link from "next/link";
 
 import { EntrarComGoogle } from "@/components/auth/EntrarComGoogle";
+import estiloDaCasca from "@/components/auth/casca-de-acesso/casca-de-acesso.module.css";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { branding } from "@/lib/branding";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -35,9 +37,11 @@ export default async function LoginPage({
   const t = (texto: string) => traduzir(texto, idioma);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 [@media(max-height:780px)]:space-y-4">
       <div className="space-y-1.5 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Entrar")}</h1>
+        <h1 className={cn("text-3xl font-bold tracking-tight", estiloDaCasca.exibicao)}>
+          {t("Entrar")}
+        </h1>
         <p className="text-sm text-muted-foreground">{branding().name}</p>
       </div>
       {reset === "success" && (
@@ -146,25 +150,18 @@ export default async function LoginPage({
       )}
       <LoginForm next={next} />
       <EntrarComGoogle next={next} convite={conviteDoNext} />
-      <div className="space-y-2 text-center text-sm">
-        <p>
-          <Link
-            href="/login/forgot"
-            className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
-          >
-            {t("Esqueci minha senha")}
-          </Link>
-        </p>
-        <p className="text-muted-foreground">
-          {t("Não tem conta?")}{" "}
-          <Link
-            href={conviteDoNext ? `/signup?invite=${encodeURIComponent(conviteDoNext)}` : "/signup"}
-            className="font-medium text-foreground underline underline-offset-4"
-          >
-            {t("Criar conta")}
-          </Link>
-        </p>
-      </div>
+      {/* "Criar conta" mora só no alternador do topo (`Alternador.tsx`), que
+          leva o convite adiante com a mesma extração daqui. Um segundo link com
+          o mesmo nome na tela torna ambíguo "o link Criar conta" — para quem
+          navega por leitor de tela e para o `signup-journey.spec.ts`. */}
+      <p className="text-center text-sm">
+        <Link
+          href="/login/forgot"
+          className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          {t("Esqueci minha senha")}
+        </Link>
+      </p>
     </div>
   );
 }

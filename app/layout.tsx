@@ -5,20 +5,9 @@ import { Toaster } from "sonner";
 import { coresDaBarraDoNavegador } from "@/lib/branding/barra-do-navegador";
 import { MarcaDaInstalacaoProvider } from "@/lib/branding/contexto";
 import { cssDaMarca } from "@/lib/branding/css";
-import {
-  marcaDaInstalacao,
-  motivoDoFallback,
-  registrarEstadoDaMarca,
-  type LinhaDaMarca,
-} from "@/lib/branding/instalacao";
+import { motivoDoFallback, registrarEstadoDaMarca } from "@/lib/branding/instalacao";
+import { marcaResolvidaDaInstalacao } from "@/lib/branding/instalacao-resolvida";
 import { REGUA_DO_PRODUTO } from "@/lib/branding/regua-do-produto";
-import {
-  camadaDaInstalacao,
-  camadaDoAmbiente,
-  resolverMarca,
-  type MarcaResolvida,
-} from "@/lib/branding/resolve";
-import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { ThemeProvider } from "@/lib/theme";
 import { Providers } from "./providers";
@@ -39,29 +28,9 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-mono",
 });
 
-/**
- * A pilha de camadas da marca da instalação: BANCO acima, `.env` embaixo.
- *
- * Uma função só porque `generateMetadata`, `EstiloDaMarca` e `MarcaNoNavegador`
- * precisam da MESMA resolução — montagens separadas da pilha divergiriam, e a
- * divergência apareceria como título da aba com uma marca, cor com outra e barra
- * lateral com uma terceira.
- *
- * A leitura do banco é memoizada em `lib/branding/instalacao.ts`, então as três
- * chamadas por requisição custam UMA consulta a cada TTL.
- */
-async function marcaResolvida(): Promise<{
-  /** A linha crua — só `EstiloDaMarca` precisa dela, para gravar o estado. */
-  readonly linha: LinhaDaMarca | null;
-  readonly marca: MarcaResolvida;
-}> {
-  const linha = await marcaDaInstalacao();
-  const marca = resolverMarca(
-    [camadaDaInstalacao(linha), camadaDoAmbiente(env)],
-    REGUA_DO_PRODUTO,
-  );
-  return { linha, marca };
-}
+// A pilha da marca da instalação mora num módulo compartilhado: a casca das
+// telas de acesso precisa da MESMA resolução (ver o cabeçalho de lá).
+const marcaResolvida = marcaResolvidaDaInstalacao;
 
 /**
  * Metadata dinâmica (não `export const metadata`) para a marca ser lida em RUNTIME.

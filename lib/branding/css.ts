@@ -228,7 +228,26 @@ export const ESCOPO_DA_ORGANIZACAO = [
   ['[data-theme="dark"] body:has([data-marca-org])', "escuro"],
 ] as const;
 
-export type EscopoDaMarca = typeof ESCOPO_DA_INSTALACAO | typeof ESCOPO_DA_ORGANIZACAO;
+/**
+ * O escopo da CASCA ESCURA das telas de acesso: a marca da instalação, na
+ * variante ESCURA, dentro da subárvore que se força escura sem mexer no `<html>`.
+ *
+ * Os dois escopos acima partem de que `[data-theme="dark"]` só existe no
+ * `<html>`. A casca de `/login` e `/signup` é sempre escura, qualquer que seja o
+ * tema de quem visita, e marca isso num `<div data-theme="dark">` — onde o bloco
+ * `[data-theme="dark"]` do `globals.css` (0,1,0) redeclara a rampa de accent do
+ * PRODUTO e sombreia, por proximidade de herança, a marca que veio do `<html>`.
+ * O sintoma: botão e anel de foco na cor de fábrica, com a marca configurada.
+ *
+ * (0,2,0) vence (0,1,0) no MESMO elemento, então esta regra ganha sem depender
+ * de ordem de documento.
+ */
+export const ESCOPO_DA_CASCA_ESCURA = [['[data-casca-de-acesso][data-theme="dark"]', "escuro"]] as const;
+
+export type EscopoDaMarca =
+  | typeof ESCOPO_DA_INSTALACAO
+  | typeof ESCOPO_DA_ORGANIZACAO
+  | typeof ESCOPO_DA_CASCA_ESCURA;
 
 function montarBloco(seletor: string, decls: readonly Declaracao[]): string {
   const linhas = decls.map(([nome, valor]) => `  ${nome}: ${valor};`);

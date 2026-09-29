@@ -29,6 +29,11 @@ import type { MarcaDeSaida } from "@/lib/branding/saida";
 
 const marcaDaSaida = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/branding/saida", () => ({ marcaDaSaida }));
+// A casca também injeta a variante escura da marca (ver `ESCOPO_DA_CASCA_ESCURA`),
+// e a resolução completa lê o banco. Sem cor configurada não há bloco a injetar.
+vi.mock("@/lib/branding/instalacao-resolvida", () => ({
+  marcaResolvidaDaInstalacao: vi.fn(async () => ({ linha: null, marca: { cor: null } })),
+}));
 // A casca passou a resolver o idioma da interface (ver `IdiomaProvider` no
 // próprio layout) e por isso chama `createClient()`, que lê cookies — algo que
 // só existe dentro de uma requisição real. Fora do login quase nunca há

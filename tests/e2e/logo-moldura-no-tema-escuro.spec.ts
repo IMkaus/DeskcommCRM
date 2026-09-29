@@ -37,6 +37,29 @@
  * com que o dono aprovou a mudança ("desde que não quebre o visual que já
  * existe e está consolidado há meses").
  *
+ * ═══ UMA SEGUNDA FRONTEIRA, ABERTA PELO REDESIGN DA CASCA DE ACESSO ═══
+ *
+ * O caso (3) media a TELA DE ENTRADA nos dois temas e exigia moldura no
+ * escuro — igual à barra lateral. O redesign da casca de acesso (referência
+ * OuTree, identidade Scalium) tirou essa moldura de lá, e de propósito: ver o
+ * cabeçalho de `app/(public)/layout.tsx` e de
+ * `tests/unit/logo-nao-some-no-tema-escuro.test.ts`. Duas razões, as duas já
+ * escritas nesses dois lugares e só resumidas aqui:
+ *
+ *   1. a marca instalada é hoje um traço VERMELHO sobre TRANSPARENTE — e
+ *      vermelho sobre o fundo escuro da casca lê bem sem moldura nenhuma;
+ *   2. a casca força `data-theme="dark"` SEMPRE (a identidade é escura por
+ *      doutrina), então a moldura deixaria de ser condicional ao tema salvo
+ *      do visitante — seria incondicional, e uma variante BRANCA da marca
+ *      configurada por engano voltaria a desenhar um retângulo em branco
+ *      dentro dela, sem nada visível, na PRIMEIRA tela que um cliente em
+ *      potencial abre.
+ *
+ * O caso (3) agora mede o INVERSO do que media antes: que a fachada continua
+ * SEM moldura em qualquer tema salvo, e que o `data-theme` que vale para os
+ * TOKENS dela (não o do `<html>`, que ainda segue a escolha salva — é outro
+ * atributo, numa árvore diferente) é sempre `"dark"`.
+ *
  * ═══ A CONDIÇÃO DO DONO É MENSURÁVEL, E O CASO (6) A MEDE ═══
  *
  * "Não quebrar o que já existe" tem um sentido geométrico exato para quem NÃO
@@ -435,43 +458,54 @@ test.describe("a moldura do logo no tema escuro", () => {
     expect(m.sombra, "no tema claro a moldura não pode ter sombra").toBe("none");
   });
 
-  test("(3) a TELA DE ENTRADA repete as duas medidas, sem sessão nenhuma", async ({ browser }) => {
-    // Contexto novo e deslogado: é o estado de quem só recebeu o endereço. O tema
-    // é semeado antes do primeiro byte porque a fachada não tem controle — é o
-    // que o navegador de quem escolheu escuro e saiu da conta já faz sozinho.
-    for (const tema of ["dark", "light"] as const) {
+  test("(3) a TELA DE ENTRADA é sempre escura e nunca desenha a moldura, em qualquer tema salvo", async ({
+    browser,
+  }) => {
+    // Contexto novo e deslogado: é o estado de quem só recebeu o endereço. O
+    // tema é semeado antes do primeiro byte, exatamente como o navegador de
+    // quem já escolheu um tema e saiu da conta faz sozinho — e é justamente
+    // essa escolha que a casca de acesso agora IGNORA de propósito.
+    for (const temaSalvo of ["dark", "light"] as const) {
       const contexto = await browser.newContext();
       try {
         const pagina = await contexto.newPage();
         await pagina.addInitScript(
           (t) => window.localStorage.setItem("deskcomm-theme", t),
-          tema,
+          temaSalvo,
         );
         await pagina.goto("/login");
-        expect(await temaDaPagina(pagina), `a fachada não ficou em ${tema}`).toBe(tema);
 
-        const m = await medirMoldura(pagina.getByTestId("logo-da-fachada"));
-        anotar(`3-fachada-${tema}.json`, m);
-        await pagina.screenshot({ path: evidencia(`3-fachada-${tema}.png`) });
+        // O `<html data-theme>` segue a escolha salva de sempre — é o
+        // `THEME_INIT_SCRIPT` do layout RAIZ, que este redesign não tocou.
+        expect(
+          await temaDaPagina(pagina),
+          `o <html> não ficou em ${temaSalvo} — o script de tema mudou de comportamento`,
+        ).toBe(temaSalvo);
 
-        if (tema === "dark") {
-          expect(
-            fundoEClaro(m.fundo),
-            `a fachada no escuro desenhou o logo CRU (fundo=${m.fundo}) — o defeito ` +
-              `volta inteiro na tela de primeira impressão`,
-          ).toBe(true);
-          expect(m.padding.every((p) => p > 0), `fachada escura sem folga: ${m.padding}`).toBe(
-            true,
-          );
-          expect(m.caixaDoPai.largura).toBeGreaterThan(m.caixaDoLogo.largura);
-          expect(m.caixaDoPai.altura).toBeGreaterThan(m.caixaDoLogo.altura);
-        } else {
-          expect(
-            fundoETransparente(m.fundo),
-            `a fachada no claro ganhou moldura (${m.fundo})`,
-          ).toBe(true);
-          expect(m.padding).toEqual([0, 0, 0, 0]);
-        }
+        const logo = pagina.getByTestId("logo-da-fachada");
+        const dataThemeDaCasca = await logo.evaluate((el) => {
+          const casca = el.closest("[data-theme]") as HTMLElement | null;
+          return casca?.getAttribute("data-theme") ?? null;
+        });
+        expect(
+          dataThemeDaCasca,
+          `a casca de acesso não está marcada data-theme="dark" com o tema salvo em ${temaSalvo} — ` +
+            `a identidade da marca deveria ser escura sempre, independente da escolha do visitante`,
+        ).toBe("dark");
+
+        const m = await medirMoldura(logo);
+        anotar(`3-fachada-${temaSalvo}.json`, m);
+        await pagina.screenshot({ path: evidencia(`3-fachada-${temaSalvo}.png`) });
+
+        expect(
+          fundoETransparente(m.fundo),
+          `a fachada desenhou uma moldura clara por trás do logo (fundo=${m.fundo}, tema salvo=` +
+            `${temaSalvo}) — a casca de acesso não tem mais esse chip (ver o cabeçalho desta spec)`,
+        ).toBe(true);
+        expect(
+          m.padding,
+          `a fachada não pode ter folga de moldura nenhuma (tema salvo=${temaSalvo})`,
+        ).toEqual([0, 0, 0, 0]);
       } finally {
         await contexto.close();
       }

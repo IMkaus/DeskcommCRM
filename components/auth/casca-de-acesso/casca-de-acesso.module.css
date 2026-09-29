@@ -1,0 +1,104 @@
+/**
+ * A casca animada de duas colunas das telas de acesso (login/cadastro).
+ *
+ * Por que CSS Module, e não Tailwind puro: `app/globals.css` está fora do meu
+ * alcance nesta sessão (outro agente recolore os tokens escuros ali), e a
+ * troca de painel precisa de uma media query cujo ÚNICO trabalho é ligar o
+ * modo "dois painéis absolutos que se cruzam" a partir de `lg` — abaixo disso
+ * o layout é uma coluna só, sem posicionamento nenhum. Isso não tem
+ * equivalente direto num utilitário Tailwind sem inventar uma dezena de
+ * classes arbitrárias por breakpoint.
+ *
+ * Este arquivo declara SÓ estrutura e movimento (posição, largura,
+ * transform, transição). Cor, espaçamento interno e tipografia dos painéis
+ * continuam em classes Tailwind no componente — que já leem os tokens de
+ * `app/globals.css` (accent, bg, texto, raio) e por isso acompanham a
+ * recoloração em curso sem precisar mudar aqui.
+ */
+
+.casca {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.trilha {
+  position: relative;
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+}
+
+.painel {
+  width: 100%;
+}
+
+/* Mobile: o formulário ocupa a trilha inteira (coluna única, sem troca de
+   lado — DoD do redesign) e o carrossel fica oculto (ver o cabeçalho do
+   componente Carrossel para o "compacto OU oculto" escolhido). */
+.painelDeFormulario {
+  flex: 1 1 auto;
+}
+
+.painelDeCarrossel {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .trilha {
+    display: block;
+  }
+
+  .painel {
+    position: absolute;
+    inset: 0;
+    width: 50%;
+    transition: transform 560ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
+  }
+
+  .aEsquerda {
+    transform: translateX(0%);
+  }
+
+  .aDireita {
+    transform: translateX(100%);
+  }
+
+  .painelDeCarrossel {
+    display: block;
+    overflow: hidden;
+  }
+
+  /* O painel tem a altura da tela e a `.casca` corta o que sobra (ela precisa
+     do `overflow: hidden` para esconder o painel em trânsito). Numa tela baixa —
+     notebook com zoom de 125–150% dá ~590px de altura útil — o formulário não
+     cabe; sem rolagem própria, o que passava da borda simplesmente sumia. */
+  .painelDeFormulario {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Troca de painel instantânea sob movimento reduzido — a MESMA garantia que
+   o carrossel já dá para o próprio giro automático (ver Carrossel.tsx). */
+@media (prefers-reduced-motion: reduce) {
+  .painel {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* O toque de "exibição" nos títulos e na frase do carrossel — só tracking
+   mais firme, sobre o `--font-sans` do produto (Atkinson).
+   Uma fonte de exibição própria (Archivo, como a identidade Scalium usa) foi
+   tentada e revertida: `next/font/google` é uma transformação do compilador
+   do Next (SWC dentro do pipeline de build/dev), não uma função comum, e
+   chamá-la fora desse pipeline — como `tests/unit/marca-na-fachada-de-
+   acesso.test.tsx` faz ao importar e invocar o layout direto pelo Vitest —
+   trava em busca de rede ou lança `Archivo is not a function` (medido nas
+   duas formas). Ver o cabeçalho de `app/(public)/layout.tsx`. */
+.exibicao {
+  letter-spacing: -0.02em;
+}

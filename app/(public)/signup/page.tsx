@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { EntrarComGoogle } from "@/components/auth/EntrarComGoogle";
+import estiloDaCasca from "@/components/auth/casca-de-acesso/casca-de-acesso.module.css";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { Button } from "@/components/ui/button";
 import { branding } from "@/lib/branding";
@@ -9,6 +10,7 @@ import { modoDeCadastro } from "@/lib/auth/politica-de-cadastro";
 import { createClient } from "@/lib/supabase/server";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Criar conta" };
 
@@ -60,7 +62,7 @@ export default async function SignupPage({
     return (
       <div className="space-y-6 text-center">
         <div className="space-y-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className={cn("text-2xl font-bold tracking-tight", estiloDaCasca.exibicao)}>
             {t("Cadastro apenas por convite")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -81,9 +83,11 @@ export default async function SignupPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 [@media(max-height:780px)]:space-y-4">
       <div className="space-y-1.5 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Criar conta")}</h1>
+        <h1 className={cn("text-3xl font-bold tracking-tight", estiloDaCasca.exibicao)}>
+          {t("Criar conta")}
+        </h1>
         <p className="text-sm text-muted-foreground">
           {convite
             ? t("Crie sua senha para entrar na empresa que te convidou")
@@ -106,13 +110,7 @@ export default async function SignupPage({
       {/* O convite atravessa o Google na URL de retorno: sem ele, quem foi
           convidado e cria a conta com Google ganharia uma empresa própria. */}
       <EntrarComGoogle convite={convite?.token} />
-
-      <p className="text-center text-sm text-muted-foreground">
-        {t("Já tem conta?")}{" "}
-        <Link href="/login" className="font-medium text-foreground underline underline-offset-4">
-          {t("Entrar")}
-        </Link>
-      </p>
+      {/* "Entrar" mora só no alternador do topo — ver o comentário em `login/page.tsx`. */}
     </div>
   );
 }

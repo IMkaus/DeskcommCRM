@@ -10,17 +10,32 @@
  * ou preto ali não tem contraste nenhum e simplesmente some, sem erro, sem
  * aviso e sem nada na tela dizendo que sumiu.
  *
- * O conserto é um chip claro POR BAIXO do logo, ligado ao tema. Ele aparece em
- * três superfícies, e as três precisam concordar — consertar uma só devolve o
- * defeito nas outras duas:
+ * O conserto é um chip claro POR BAIXO do logo, ligado ao tema. Ele continua
+ * valendo em DUAS superfícies, e as duas precisam concordar — consertar uma só
+ * devolve o defeito na outra:
  *
  *   1. a barra lateral do app          (`components/shell/Sidebar.tsx`)
- *   2. a tela de entrada               (`app/(public)/layout.tsx`)
- *   3. a PRÉVIA da tela de marca       (`components/branding/CampoDeLogo.tsx`)
+ *   2. a PRÉVIA da tela de marca       (`components/branding/CampoDeLogo.tsx`)
  *
- * A terceira é a que mais engana: se a prévia mostrar o logo cru onde o app
+ * A segunda é a que mais engana: se a prévia mostrar o logo cru onde o app
  * real desenha um chip, ela deixa de ser prévia — o operador aprova na tela de
  * marca uma coisa e recebe outra no produto.
+ *
+ * ═══ A TERCEIRA SUPERFÍCIE SAIU — E FOI DECISÃO, NÃO DESCUIDO ═══
+ *
+ * A TELA DE ENTRADA (`app/(public)/layout.tsx`) tinha o mesmo chip até o
+ * redesign da casca de acesso (referência OuTree, identidade Scalium). Ele
+ * passou a produzir o defeito OPOSTO: a marca instalada é um traço VERMELHO
+ * sobre fundo TRANSPARENTE, e um logo branco (variante que existe ao lado da
+ * vermelha) configurado por engano ficava branco-sobre-branco dentro do chip —
+ * um retângulo em branco, sem nada visível, na PRIMEIRA tela que um cliente em
+ * potencial abre. E a casca nova força `data-theme="dark"` sempre (a
+ * identidade da marca é escura por doutrina, não segue mais o tema salvo do
+ * visitante), então o chip deixou de ser condicional — seria incondicional, e
+ * o retângulo em branco também. Vermelho sobre o fundo escuro da casca lê bem
+ * sozinho, sem chip. A cerca abaixo (`sem chip na fachada`) prova a ausência
+ * deliberada; ver o cabeçalho de `app/(public)/layout.tsx` para o raciocínio
+ * completo.
  *
  * ═══ ⚠️ ESTE TESTE É UMA CERCA, NÃO UMA PROVA ═══
  *
@@ -30,12 +45,12 @@
  * NÃO faz é medir contraste num navegador — isso é Playwright com
  * `getComputedStyle`, e está anotado como pendência.
  *
- * As duas primeiras superfícies usam a variante `dark:` do Tailwind, que neste
- * repo é `@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))`
+ * A barra lateral usa a variante `dark:` do Tailwind, que neste repo é
+ * `@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))`
  * (app/globals.css) — ou seja, segue o tema DO APP, não o do sistema
- * operacional. A terceira não pode usar `dark:`: ela desenha as duas aparências
- * lado a lado no MESMO tema real, simulando o fundo por `style`, então lá a
- * condição é o rótulo da caixa.
+ * operacional. A prévia da tela de marca NÃO pode usar `dark:`: ela desenha as
+ * duas aparências lado a lado no MESMO tema real, simulando o fundo por
+ * `style`, então lá a condição é o rótulo da caixa.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -85,16 +100,18 @@ describe("o logo do operador não some no tema escuro", () => {
     ).toBe(true);
   });
 
-  it("a TELA DE ENTRADA desenha o logo sobre o mesmo chip", () => {
-    // O login também respeita `data-theme` — o `ThemeProvider` embrulha a raiz
-    // inteira (`app/layout.tsx`), a fachada inclusa.
+  it("a TELA DE ENTRADA NÃO desenha mais o chip — decisão do redesign, não regressão", () => {
+    // Ver o cabeçalho deste arquivo e o de `app/(public)/layout.tsx`: o chip
+    // aqui trocava um defeito por outro (branco sobre branco quando a arte
+    // configurada é a variante clara da marca), e a casca nova é sempre
+    // escura — não haveria mais estado "claro" para o chip alternar.
     const fonte = semComentario(leia("app/(public)/layout.tsx"));
-
-    expect(fonte, "sumiu o chip `dark:bg-white` da tela de entrada").toMatch(/dark:bg-white/);
     expect(
-      imgDoLogoEstaDentroDoChip(fonte, /dark:bg-white/),
-      "o `<img>` do logo saiu de dentro do chip `dark:bg-white`",
-    ).toBe(true);
+      fonte,
+      "o chip `dark:bg-white` voltou à tela de entrada — isso reintroduz o " +
+        "retângulo em branco quando a marca configurada é a variante clara " +
+        "(ver o cabeçalho de app/(public)/layout.tsx)",
+    ).not.toMatch(/dark:bg-white/);
   });
 
   it("a PRÉVIA da tela de marca mostra o chip na caixa da aparência escura", () => {

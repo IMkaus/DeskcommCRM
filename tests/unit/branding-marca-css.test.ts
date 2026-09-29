@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   cssDaMarca,
+  ESCOPO_DA_CASCA_ESCURA,
   ESCOPO_DA_INSTALACAO,
   ESCOPO_DA_ORGANIZACAO,
 } from "@/lib/branding/css";
@@ -311,7 +312,7 @@ describe("guardas de mecanismo", () => {
     // POR QUE ESTE TESTE EXISTE: o seletor entra direto em `montarBloco` sem
     // passar por validação nenhuma — a allowlist cobre nome de token e forma de
     // VALOR, e a rede de segurança do fim só pega `<` e `;}` (não pega um `}`
-    // sozinho). O tipo já é a união dos dois literais, mas quem escreve um
+    // sozinho). O tipo já é a união dos escopos nomeados, mas quem escreve um
     // `as const` novo no arquivo da própria tela não esbarra no typecheck: aqui
     // a regra fica escrita num lugar em que alguém a encontra.
     const chamadas: string[] = [];
@@ -325,7 +326,12 @@ describe("guardas de mecanismo", () => {
         chamadas.push(`${alvo}: ${chamada}`);
         const escopo = chamada.split(",")[1]?.trim().replace(/\)$/, "");
         if (escopo === undefined) continue;
-        if (escopo === "ESCOPO_DA_INSTALACAO" || escopo === "ESCOPO_DA_ORGANIZACAO") continue;
+        if (
+          escopo === "ESCOPO_DA_INSTALACAO" ||
+          escopo === "ESCOPO_DA_ORGANIZACAO" ||
+          escopo === "ESCOPO_DA_CASCA_ESCURA"
+        )
+          continue;
         forasteiros.push(`${alvo}: ${chamada}`);
       }
     }
@@ -402,5 +408,38 @@ describe("guardas de mecanismo", () => {
       .join("\n");
     expect(semComentario).not.toMatch(/\bhref=/);
     expect(semComentario).not.toMatch(/\bprecedence\b/);
+  });
+});
+
+describe("o escopo da casca escura das telas de acesso", () => {
+  it("emite um único bloco, no seletor exato que a casca carrega", () => {
+    // O literal inteiro, pelo mesmo motivo do escopo da organização: é o que
+    // `components/auth/casca-de-acesso/CascaDeAcesso.tsx` precisa satisfazer
+    // (`data-theme="dark"` + `data-casca-de-acesso` no mesmo elemento).
+    const { css } = cssDaMarca(corDe("#e11d2a"), ESCOPO_DA_CASCA_ESCURA);
+    expect(Object.keys(lerBlocos(css ?? ""))).toEqual([
+      '[data-casca-de-acesso][data-theme="dark"]',
+    ]);
+  });
+
+  it("pinta a casca com a variante ESCURA da marca, igual à que o <html> escuro recebe", () => {
+    // Sem isto, o `[data-theme="dark"]` do `globals.css` redeclara a rampa de
+    // accent do produto no próprio elemento e sombreia a marca: botão e anel de
+    // foco saíam na cor de fábrica com a marca configurada.
+    for (const hex of SEMENTES) {
+      const casca = lerBlocos(cssDaMarca(corDe(hex), ESCOPO_DA_CASCA_ESCURA).css ?? "");
+      const raiz = lerBlocos(cssDaMarca(corDe(hex), ESCOPO_DA_INSTALACAO).css ?? "");
+      expect(casca['[data-casca-de-acesso][data-theme="dark"]'], hex).toEqual(
+        raiz[':root:root[data-theme="dark"]'],
+      );
+    }
+  });
+
+  it("o componente da casca carrega os dois atributos no mesmo elemento", () => {
+    const fonte = fs.readFileSync(
+      path.join(RAIZ, "components/auth/casca-de-acesso/CascaDeAcesso.tsx"),
+      "utf8",
+    );
+    expect(fonte).toMatch(/data-theme="dark"\s+data-casca-de-acesso=""/);
   });
 });

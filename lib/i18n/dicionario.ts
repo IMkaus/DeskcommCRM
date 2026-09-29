@@ -11376,6 +11376,24 @@ export const DICIONARIO: Traducoes = {
     es: "El acceso de esta cuenta fue retirado por quien administra el sistema — así que no creamos una empresa nueva para ti. Si el acceso debería continuar, pídele a quien administra que lo restaure; si estás entrando en otro equipo, pide una invitación.",
   },
 
+  // ─── Casca de acesso (redesign login/cadastro): alternador e carrossel de marca ───
+  "Alternar entre entrar e criar conta": { es: "Cambiar entre entrar y crear cuenta" },
+  carrossel: { es: "carrusel" },
+  "Depoimentos sobre o produto": { es: "Testimonios sobre el producto" },
+  "Ir para o depoimento": { es: "Ir al testimonio" },
+  "O WhatsApp da operação, atendido por IA 24 horas por dia. Nenhum lead espera até segunda.": {
+    es: "El WhatsApp de la operación, atendido por IA las 24 horas. Ningún lead espera hasta el lunes.",
+  },
+  "Cada agendamento cai direto na agenda, sem ninguém copiar número de uma tela para outra.": {
+    es: "Cada cita cae directo en la agenda, sin que nadie copie un número de una pantalla a otra.",
+  },
+  "Um funil só, da primeira mensagem ao fechamento: pipeline, tarefas e histórico no mesmo lugar.": {
+    es: "Un solo embudo, desde el primer mensaje hasta el cierre: pipeline, tareas e historial en un mismo lugar.",
+  },
+  "Time humano e agentes de IA na mesma fila. A IA resolve o simples; o time entra no que importa.": {
+    es: "Equipo humano y agentes de IA en la misma fila. La IA resuelve lo simple; el equipo entra en lo que importa.",
+  },
+
   // ─── Painel "Para integrar" (dados não-secretos da conexão) ───
   "Para integrar": { es: "Para integrar" },
   "Copiar dados": { es: "Copiar datos" },

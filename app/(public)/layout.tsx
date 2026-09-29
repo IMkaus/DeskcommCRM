@@ -1,11 +1,32 @@
+import { CascaDeAcesso } from "@/components/auth/casca-de-acesso/CascaDeAcesso";
 import { LogotipoDoProduto } from "@/components/branding/MarcaDoProduto";
 import { marcaEhADoProduto } from "@/lib/branding";
+import { cssDaMarca, ESCOPO_DA_CASCA_ESCURA } from "@/lib/branding/css";
+import { marcaResolvidaDaInstalacao } from "@/lib/branding/instalacao-resolvida";
 import { marcaDaSaida } from "@/lib/branding/saida";
 import { createClient } from "@/lib/supabase/server";
 import { IdiomaProvider } from "@/lib/i18n/IdiomaProvider";
 
 /**
  * A casca das telas de acesso — login, cadastro, recuperação, MFA.
+ *
+ * Redesign (referência OuTree, identidade visual Scalium): o antigo card
+ * central de uma coluna virou `CascaDeAcesso`, um shell de duas colunas que
+ * anima a troca de lado entre `/login` e `/signup` — ver o cabeçalho daquele
+ * componente. Este arquivo continua resolvendo SÓ o que é dele: marca e
+ * idioma. A estrutura visual (painéis, cor, animação) é toda de
+ * `components/auth/casca-de-acesso/**`.
+ *
+ * SEM Archivo via `next/font/google` aqui — foi tentado e revertido: o
+ * carregador de fonte do Next é uma transformação do compilador (SWC dentro do
+ * pipeline do `next build`/`next dev`), não uma função comum, e chamá-la fora
+ * desse pipeline — que é exatamente o que `tests/unit/marca-na-fachada-de-
+ * acesso.test.tsx` faz ao importar e invocar este layout direto pelo Vitest —
+ * ou tenta buscar a fonte pela rede de verdade (tempo de teste esgotado, sem
+ * internet no sandbox) ou lança `TypeError: Archivo is not a function`,
+ * medido nas duas formas ao vivo. A exibição usa o `--font-sans` do produto
+ * (Atkinson), só com peso/tracking mais firmes — a saída que o próprio pedido
+ * do redesign já previa ("otherwise keep the app fonts").
  *
  * ── Por que o LOGO mora aqui, e não em `login/page.tsx` ───────────────────────
  *
@@ -49,51 +70,55 @@ export default async function PublicLayout({ children }: { children: React.React
   } = await supabase.auth.getUser();
   const locale = (user?.user_metadata?.locale as string | undefined) ?? null;
 
+  const logo = marca.logoUrl ? (
+    // <img> em vez de next/image pelo mesmo motivo da barra lateral: a URL é de
+    // quem hospeda e o `next/image` exige allowlist de domínios fechada em
+    // BUILD — a imagem pré-buildada do self-host recusaria o domínio do
+    // operador. Largura fixa (é uma marca larga: 1121×568) e altura livre, para
+    // não distorcer arte de proporção desconhecida.
+    //
+    // O `alt` é o nome DESTA resolução (`marca.nome`), e não o de `branding()`:
+    // é a legenda da imagem que está ali, e nomeá-la com a marca de outra fonte
+    // descreveria uma marca que não é a do logo.
+    //
+    // O `data-testid` é lido por `tests/e2e/marca-logo.spec.ts`, que prova que o
+    // logo da EMPRESA não vaza para cá. Sem ele a spec caía na "primeira <img>
+    // da página", e uma asserção de negação com seletor largo passa sozinha
+    // assim que outra imagem entra na tela.
+    //
+    // SEM chip de fundo: a versão anterior embrulhava o logo num chip claro
+    // ligado ao tema (ver o histórico em
+    // tests/unit/logo-nao-some-no-tema-escuro.test.ts), pensado para dar
+    // contraste a um logo escuro sobre superfície escura — mas com a marca
+    // atual (traço vermelho sobre fundo transparente) esse chip produzia o
+    // defeito oposto: um logo BRANCO configurado por engano ficava
+    // branco-sobre-branco dentro dele, e a tela mostrava só um retângulo em
+    // branco. Vermelho sobre o fundo escuro desta casca lê bem sozinho — sem
+    // chip, sem esse modo de falha.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      data-testid="logo-da-fachada"
+      src={marca.logoUrl}
+      alt={marca.nome}
+      className="h-auto w-40 object-contain sm:w-44 [@media(max-height:780px)]:w-32"
+    />
+  ) : marcaEhADoProduto({ name: marca.nome, logoUrl: null }) ? (
+    <LogotipoDoProduto nome={marca.nome} className="h-12 w-auto" />
+  ) : null;
+
+  // A casca é sempre escura e se marca num `<div>`, não no `<html>`: sem este
+  // bloco, o `[data-theme="dark"]` do `globals.css` repinta os botões com o
+  // accent de fábrica por cima da marca. Ver `ESCOPO_DA_CASCA_ESCURA`. O motivo
+  // de uma cor recusada já é registrado por `EstiloDaMarca`, no layout raiz.
+  const { marca: marcaCompleta } = await marcaResolvidaDaInstalacao();
+  const cssDaCasca = cssDaMarca(marcaCompleta.cor, ESCOPO_DA_CASCA_ESCURA).css;
+
   return (
     <IdiomaProvider locale={locale}>
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="w-full max-w-sm space-y-6">
-          {marca.logoUrl ? (
-            <div className="flex justify-center">
-              {/*
-                <img> em vez de next/image pelo mesmo motivo da barra lateral: a URL
-                é de quem hospeda e o `next/image` exige allowlist de domínios
-                fechada em BUILD — a imagem pré-buildada do self-host recusaria o
-                domínio do operador. Altura fixa e largura livre para não distorcer
-                arte de proporção desconhecida.
-
-                O `alt` é o nome DESTA resolução (`marca.nome`), e não o de
-                `branding()`: é a legenda da imagem que está ali, e nomeá-la com a
-                marca de outra fonte descreveria uma marca que não é a do logo.
-
-                O `data-testid` é lido por `tests/e2e/marca-logo.spec.ts`, que prova
-                que o logo da EMPRESA não vaza para cá. Sem ele a spec caía na
-                "primeira <img> da página", e uma asserção de negação com seletor
-                largo passa sozinha assim que outra imagem entra na tela.
-              */}
-              {/* O chip `dark:bg-white` é o mesmo da barra lateral
-                (`components/shell/Sidebar.tsx`): esta tela também respeita
-                `data-theme` (o `ThemeProvider` embrulha a raiz inteira, login
-                incluso), então um logo escuro contra `--color-surface` escuro tem
-                o mesmo problema de contraste aqui. */}
-              <div className="rounded-md dark:bg-white dark:px-3 dark:py-2 dark:shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  data-testid="logo-da-fachada"
-                  src={marca.logoUrl}
-                  alt={marca.nome}
-                  className="h-10 w-auto max-w-[12rem] object-contain"
-                />
-              </div>
-            </div>
-          ) : marcaEhADoProduto({ name: marca.nome, logoUrl: null }) ? (
-            <div className="flex justify-center">
-              <LogotipoDoProduto nome={marca.nome} className="h-12 w-auto" />
-            </div>
-          ) : null}
-          {children}
-        </div>
-      </div>
+      {cssDaCasca && (
+        <style id="marca-casca-de-acesso" dangerouslySetInnerHTML={{ __html: cssDaCasca }} />
+      )}
+      <CascaDeAcesso logo={logo}>{children}</CascaDeAcesso>
     </IdiomaProvider>
   );
 }
