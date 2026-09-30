@@ -10,8 +10,8 @@
  * ou preto ali não tem contraste nenhum e simplesmente some, sem erro, sem
  * aviso e sem nada na tela dizendo que sumiu.
  *
- * O conserto é um chip claro POR BAIXO do logo, ligado ao tema. Ele continua
- * valendo em DUAS superfícies, e as duas precisam concordar — consertar uma só
+ * O conserto, na barra lateral e na prévia, é uma SILHUETA BRANCA do logo no
+ * tema escuro (`filter: brightness(0) invert(1)`, sem chip). Vale em DUAS superfícies, e as duas precisam concordar — consertar uma só
  * devolve o defeito na outra:
  *
  *   1. a barra lateral do app          (`components/shell/Sidebar.tsx`)
@@ -64,40 +64,22 @@ const leia = (rel: string) => readFileSync(join(RAIZ, rel), "utf8");
 const semComentario = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "");
 
-/**
- * O `<img>` é o PRIMEIRO filho do elemento que carrega a classe do chip.
- *
- * ⚠️ Proximidade não é contenção, e a primeira versão desta cerca caiu nisso:
- * ela procurava `<img` nos 800 caracteres seguintes à classe, e a sabotagem
- * que a derrubaria — transformar o chip em IRMÃO auto-fechado do `<img>`,
- * `<div className="…chip…" /><div><img …/></div>` — passou VERDE. O logo
- * voltava a ser desenhado cru e a guarda não via.
- *
- * A régua certa tem dois passos: a tag do chip NÃO pode se auto-fechar (`/>`),
- * e a primeira tag depois dela tem de ser o `<img>`.
- */
-function imgDoLogoEstaDentroDoChip(fonte: string, classeDoChip: RegExp): boolean {
-  const i = fonte.search(classeDoChip);
-  if (i < 0) return false;
-  const fimDaTag = fonte.indexOf(">", i);
-  if (fimDaTag < 0) return false;
-  if (fonte[fimDaTag - 1] === "/") return false; // chip auto-fechado: não embrulha nada
-  const proximaTag = fonte.slice(fimDaTag + 1).match(/<\s*([A-Za-z][A-Za-z0-9]*)/);
-  return proximaTag?.[1] === "img";
-}
-
 describe("o logo do operador não some no tema escuro", () => {
-  it("a BARRA LATERAL desenha o logo sobre um chip claro quando o tema é escuro", () => {
+  it("a BARRA LATERAL desenha o logo como silhueta branca quando o tema é escuro", () => {
     const fonte = semComentario(leia("components/shell/Sidebar.tsx"));
 
-    // O chip existe...
-    expect(fonte, "sumiu o chip `dark:bg-white` da barra lateral").toMatch(/dark:bg-white/);
-    // ...e o `<img>` do logo está DENTRO dele. Sem esta segunda asserção, mover
-    // a classe para um irmão deixaria a cerca verde com o logo cru de novo.
+    // O filtro tem de estar no PRÓPRIO `<img>` do logo: em qualquer irmão ou
+    // ancestral ele deixaria a arte crua de novo. `[^>]*` não atravessa o fim da
+    // tag, e o `cn(` do className não contém `>`.
+    const img = fonte.match(/<img\s[^>]*>/)?.[0] ?? "";
+    expect(img, "a barra lateral deixou de desenhar o logo com `<img>`").not.toBe("");
     expect(
-      imgDoLogoEstaDentroDoChip(fonte, /dark:bg-white/),
-      "o `<img>` do logo saiu de dentro do chip `dark:bg-white`",
-    ).toBe(true);
+      img,
+      "o `<img>` do logo da barra lateral perdeu `dark:[filter:brightness(0)_invert(1)]` — " +
+        "um logo escuro some contra o fundo escuro",
+    ).toMatch(/dark:\[filter:brightness\(0\)_invert\(1\)\]/);
+    // A moldura branca antiga NÃO volta: a silhueta a substituiu.
+    expect(fonte).not.toMatch(/dark:bg-white/);
   });
 
   it("a TELA DE ENTRADA NÃO desenha mais o chip — decisão do redesign, não regressão", () => {
@@ -114,7 +96,7 @@ describe("o logo do operador não some no tema escuro", () => {
     ).not.toMatch(/dark:bg-white/);
   });
 
-  it("a PRÉVIA da tela de marca mostra o chip na caixa da aparência escura", () => {
+  it("a PRÉVIA da tela de marca mostra a silhueta na caixa da aparência escura", () => {
     // Aqui a condição não pode ser `dark:` — ver o cabeçalho. Ela é o rótulo da
     // caixa, e o chip é incondicional dentro dela.
     const fonte = semComentario(leia("components/branding/CampoDeLogo.tsx"));
@@ -122,7 +104,7 @@ describe("o logo do operador não some no tema escuro", () => {
     expect(
       fonte,
       "a prévia da aparência escura voltou a mostrar o logo cru — ela deixa de prever o que o app desenha",
-    ).toMatch(/Apar.ncia escura["')\s]*\s*\?\s*["'`][^"'`]*bg-white/);
+    ).toMatch(/Apar.ncia escura["')\s]*\s*\?\s*["'`][^"'`]*\[filter:brightness\(0\)_invert\(1\)\]/);
   });
 
   it("CONTROLE: as três superfícies continuam sendo as três que desenham o logo do operador", () => {

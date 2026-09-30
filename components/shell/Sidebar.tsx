@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { useT } from "@/hooks/i18n/useT";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { ArrowRight, CaretDoubleLeft, CaretDoubleRight, CaretDown, Gear } from "@/lib/ui/icons";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { ArrowRight, CaretDown, Gear } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { toggleSidebar } from "@/app/actions/shell/toggleSidebar";
 import { useAuth } from "@/hooks/auth/AuthProvider";
@@ -19,6 +19,8 @@ const CHAVE_GRUPOS_FECHADOS = "sidebar-grupos-fechados";
 interface SidebarContentProps {
   collapsed: boolean;
   showCollapseControl?: boolean;
+  /** Alternar recolhido/expandido; sem ele, a barra chama a action do servidor direto. */
+  onToggle?: () => void;
   onNavigate?: () => void;
 }
 
@@ -33,13 +35,14 @@ interface SidebarContentProps {
 export function SidebarContent({
   collapsed,
   showCollapseControl = true,
+  onToggle,
   onNavigate,
 }: SidebarContentProps) {
   // A barra lateral aparece em TODA tela — traduzi-la aqui é o que faz a
   // escolha de idioma virar algo visível no primeiro clique.
   const t = useT();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const { user, activeOrg } = useAuth();
   const todos = sidebarGroups(
     user.is_platform_admin && !user.support,
@@ -115,59 +118,66 @@ export function SidebarContent({
   // Só quando NINGUÉM — nem a instalação, nem a organização — pôs marca própria:
   // é a condição de `lib/branding.ts`, avaliada sobre o que a barra vai mostrar.
   const marcaDoProduto = marcaEhADoProduto({ name: nome, logoUrl: logo ?? null });
+  const alternar = onToggle ?? (() => startTransition(() => toggleSidebar(collapsed)));
+
+  const marcaDaBarra = logo ? (
+    // Logo de quem hospeda, desenhada nos DOIS estados da barra. No tema escuro
+    // vira silhueta branca (brightness 0 + invert): serve a qualquer arte, sem
+    // depender de cor ou de CORS — e é o que impede o logo de sumir contra
+    // `--color-surface` escuro. No claro fica com as cores originais.
+    // <img> em vez de next/image: a URL vem de quem hospeda e o `next/image`
+    // exige allowlist de domínios fechada em build.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={logo}
+      alt={nome}
+      className={cn(
+        "w-auto object-contain transition-[height,max-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark:[filter:brightness(0)_invert(1)]",
+        collapsed ? "h-5 max-w-10" : "h-11 max-w-[11rem]",
+      )}
+    />
+  ) : marcaDoProduto ? (
+    // O desenho do produto, inline (ver `components/branding/MarcaDoProduto.tsx`):
+    // logotipo com a barra aberta, só o símbolo com ela recolhida.
+    collapsed ? (
+      <SimboloDoProduto nome={nome} className="h-8 w-8" />
+    ) : (
+      <LogotipoDoProduto nome={nome} className="h-8 w-auto" />
+    )
+  ) : (
+    <>
+      <span className={cn("font-semibold tracking-tight", collapsed && "sr-only")}>{nome}</span>
+      {collapsed && (
+        <span aria-hidden className="text-lg font-bold text-primary">
+          {/* Spread e não `[0]`: nome começando com emoji ou acento composto
+              quebraria no meio do code point. */}
+          {[...nome][0]?.toUpperCase() ?? brand.initial}
+        </span>
+      )}
+    </>
+  );
 
   return (
     <>
-      <div
-        className={cn(
-          "flex h-14 items-center border-b px-4",
-          collapsed ? "justify-center" : "justify-start",
-        )}
-      >
-        {logo && !collapsed ? (
-          // A moldura clara vale SÓ para o logo enviado por quem hospeda. A arte
-          // do produto (ramo `marcaDoProduto`, logo abaixo) já é desenhada para os
-          // dois temas e não precisa dela — pôr a moldura ali seria dar o remédio
-          // a quem não tem a doença.
-          // Chip claro só no tema escuro: a arte enviada é de quem hospeda, sem
-          // garantia de que tenha contraste contra `--color-surface` escuro
-          // (`#1d1c17`). Sem isto, todo logo escuro/colorido — a maioria do que
-          // se sobe pensando em fundo claro — some no tema escuro (issue: logo
-          // da Dra. Mariana Nascimento, azul-marinho sobre quase-preto). O chip
-          // é condicional ao TEMA, não à cor do logo (não dá pra inspecionar
-          // pixel de uma URL externa em server component), então ele aparece
-          // para qualquer logo — inclusive um já pensado pra fundo escuro, que
-          // fica com uma moldura branca de sobra. Troca aceita: pior caso
-          // "moldura desnecessária" é sempre melhor que pior caso "logo
-          // invisível".
-          <div className="rounded-md dark:bg-white dark:px-2 dark:py-1 dark:shadow-sm">
-            {/* <img> em vez de next/image de propósito: a URL vem de quem hospeda
-              (banco ou .env), e next/image exige allowlist de domínios fechada em
-              build — a imagem pré-buildada rejeitaria o domínio do self-hoster.
-              Altura fixa e largura livre porque a arte enviada tem proporção
-              desconhecida; forçar as duas distorceria o logo de quem configurou. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logo} alt={nome} className="h-7 w-auto max-w-[10rem] object-contain" />
-          </div>
-        ) : marcaDoProduto ? (
-          // O desenho do produto, inline (ver `components/branding/MarcaDoProduto.tsx`):
-          // logotipo com a barra aberta, só o símbolo com ela recolhida.
-          collapsed ? (
-            <SimboloDoProduto nome={nome} className="h-8 w-8" />
-          ) : (
-            <LogotipoDoProduto nome={nome} className="h-8 w-auto" />
-          )
+      <div className="flex h-14 items-center justify-center border-b px-2">
+        {showCollapseControl ? (
+          /* A logo é o controle de recolher/expandir: um clique, sem botão
+             separado no rodapé. Centralizada nos dois estados (a barra encolhe
+             ao redor dela), e só a ALTURA muda — a largura acompanha pela
+             proporção da arte, então a marca "encolhe" em vez de trocar de
+             desenho. No mobile (`showCollapseControl` falso) ela é só marca. */
+          <button
+            type="button"
+            onClick={alternar}
+            aria-label={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
+            aria-expanded={!collapsed}
+            title={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
+            className="flex items-center justify-center rounded-md p-1 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.04] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none"
+          >
+            {marcaDaBarra}
+          </button>
         ) : (
-          <span className={cn("font-semibold tracking-tight", collapsed && "sr-only")}>{nome}</span>
-        )}
-        {collapsed && !marcaDoProduto && (
-          <span aria-hidden className="text-lg font-bold text-primary">
-            {/* Spread e não `[0]`: nome começando com emoji ou acento composto
-                quebraria no meio do code point. Mesma regra de `resolveBranding`
-                — a inicial precisa acompanhar o nome que a barra mostra, senão
-                recolher o menu troca a marca. */}
-            {[...nome][0]?.toUpperCase() ?? brand.initial}
-          </span>
+          marcaDaBarra
         )}
       </div>
       {/*
@@ -329,31 +339,22 @@ export function SidebarContent({
           </Link>
         )}
         <VersionFooter collapsed={collapsed} onNavigate={onNavigate} />
-        {showCollapseControl && (
-          <button
-            type="button"
-            onClick={() => startTransition(() => toggleSidebar(collapsed))}
-            disabled={isPending}
-            className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-              collapsed && "justify-center px-2",
-            )}
-            aria-label={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
-          >
-            {collapsed ? (
-              <CaretDoubleRight size={14} aria-hidden />
-            ) : (
-              <CaretDoubleLeft size={14} aria-hidden />
-            )}
-            {!collapsed && <span>{t("Recolher")}</span>}
-          </button>
-        )}
       </div>
     </>
   );
 }
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
+  // Otimista: a barra responde ao clique na hora e a action grava o cookie em
+  // seguida. Sem isto a animação só começaria depois da ida e volta ao servidor.
+  const [colapsada, setColapsada] = useOptimistic(collapsed);
+  const [, startTransition] = useTransition();
+  const alternar = () =>
+    startTransition(async () => {
+      setColapsada(!collapsed);
+      await toggleSidebar(collapsed);
+    });
+
   return (
     <aside
       className={cn(
@@ -376,11 +377,11 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         //
         // `shrink-0` porque item de flex encolhe por padrão, e uma barra de 60
         // espremida para caber é o mesmo defeito por outro caminho.
-        "sticky top-0 z-30 flex h-screen shrink-0 flex-col border-r bg-card transition-[width] duration-200",
-        collapsed ? "w-16" : "w-60",
+        "sticky top-0 z-30 flex h-screen shrink-0 flex-col border-r bg-card transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+        colapsada ? "w-16" : "w-60",
       )}
     >
-      <SidebarContent collapsed={collapsed} />
+      <SidebarContent collapsed={colapsada} onToggle={alternar} />
     </aside>
   );
 }

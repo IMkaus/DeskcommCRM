@@ -1,41 +1,49 @@
 /**
- * A MOLDURA CLARA DO LOGO NO TEMA ESCURO — QUEM A RECEBE, E QUEM NÃO RECEBE.
+ * A SILHUETA BRANCA DO LOGO NO TEMA ESCURO — QUEM A RECEBE, E QUEM NÃO RECEBE.
+ * (O nome do arquivo guarda o da solução anterior, a moldura clara; ver abaixo.)
  *
  * ═══ O QUE ESTA SPEC MEDE, E POR QUE ELA EXISTE ═══
  *
- * O PR #659 (@felipebnt) põe uma moldura clara por trás do logo ENVIADO por
- * quem hospeda quando o tema é escuro (`rounded-md dark:bg-white dark:px-…
- * dark:py-… dark:shadow-sm`). Sem ela, arte escura sobre `--color-surface`
- * escuro (`#1d1c17`) simplesmente some — sem erro, sem aviso, e sem nada na
+ * O produto aceita UM logo só, enviado por quem hospeda, e a arte costuma ser
+ * pensada para fundo claro. Contra `--color-surface` escuro (`#1d1c17`) um logo
+ * azul-marinho ou preto simplesmente some — sem erro, sem aviso, e sem nada na
  * tela dizendo que sumiu.
  *
- * Já existe uma cerca para isso: `tests/unit/logo-nao-some-no-tema-escuro.ts`.
- * Ela lê a FONTE e prova que o `<img>` continua embrulhado pelo chip — e o
- * cabeçalho dela diz, em voz alta, o que ela NÃO faz:
+ * O PR #659 resolvia isso com uma MOLDURA clara (chip `dark:bg-white dark:px-…`)
+ * por trás do logo. Ela foi trocada por uma SILHUETA BRANCA: no tema escuro o
+ * próprio `<img>` recebe `filter: brightness(0) invert(1)` (classe
+ * `dark:[filter:brightness(0)_invert(1)]`), sem chip nenhum; no tema claro o
+ * filtro é `none` e a arte fica com as cores originais. Serve a qualquer arte
+ * sem inspecionar pixel de URL externa.
+ *
+ * Já existe uma cerca para isso: `tests/unit/logo-nao-some-no-tema-escuro.test.ts`.
+ * Ela lê a FONTE e prova que o filtro está no `<img>` — e o cabeçalho dela diz,
+ * em voz alta, o que ela NÃO faz:
  *
  *   > O que ele NÃO faz é medir contraste num navegador — isso é Playwright com
  *   > `getComputedStyle`, e está anotado como pendência.
  *
  * Esta spec é essa pendência. Ela não relê a fonte: ela abre a tela, escolhe o
- * tema como uma pessoa escolhe, e pergunta ao NAVEGADOR qual cor foi pintada.
- * A diferença não é de rigor formal — uma classe `dark:` escrita no JSX e uma
- * classe `dark:` que o Tailwind de fato compilou para o seletor certo
+ * tema como uma pessoa escolhe, e pergunta ao NAVEGADOR qual `filter` foi
+ * aplicado — e, nos casos com arte enviada, qual COR o pixel do centro do logo
+ * tem de fato. A diferença não é de rigor formal — uma classe `dark:` escrita no
+ * JSX e uma classe `dark:` que o Tailwind de fato compilou para o seletor certo
  * (`@custom-variant dark (&:where([data-theme="dark"], …))`, `app/globals.css`)
  * são coisas diferentes, e só a segunda pinta pixel.
  *
- * ═══ A FRONTEIRA QUE A RECONCILIAÇÃO CRIOU ═══
+ * ═══ A FRONTEIRA ═══
  *
- * O #659 foi escrito antes de a `main` ganhar o ramo `marcaDoProduto` (#642) —
- * a identidade PRÓPRIA do produto, um `<svg>` inline desenhado para os dois
- * temas. A reconciliação preservou os dois e disse a fronteira:
+ * A `main` tem o ramo `marcaDoProduto` (#642) — a identidade PRÓPRIA do produto,
+ * um `<svg>` inline desenhado para os dois temas:
  *
- *   - logo ENVIADO por quem hospeda  → recebe a moldura (contraste desconhecido)
- *   - arte do PRODUTO (`marcaDoProduto`) → NÃO recebe (já serve os dois temas)
+ *   - logo ENVIADO por quem hospeda  → vira silhueta branca no escuro
+ *   - arte do PRODUTO (`marcaDoProduto`) → NÃO recebe filtro (já serve os dois temas)
  *
- * O caso (5) é essa fronteira, e é o que mais importa: pôr a moldura na marca do
- * produto seria dar o remédio a quem não tem a doença — e violaria a condição
- * com que o dono aprovou a mudança ("desde que não quebre o visual que já
- * existe e está consolidado há meses").
+ * O caso (5) é essa fronteira, e é o que mais importa: aplicar a silhueta à
+ * marca do produto seria dar o remédio a quem não tem a doença — apagaria as
+ * cores da identidade — e violaria a condição com que o dono aprovou a mudança
+ * ("desde que não quebre o visual que já existe e está consolidado há meses").
+ * O que se mede é a ausência de filtro E de fundo claro em toda a cadeia.
  *
  * ═══ UMA SEGUNDA FRONTEIRA, ABERTA PELO REDESIGN DA CASCA DE ACESSO ═══
  *
@@ -49,37 +57,46 @@
  *   1. a marca instalada é hoje um traço VERMELHO sobre TRANSPARENTE — e
  *      vermelho sobre o fundo escuro da casca lê bem sem moldura nenhuma;
  *   2. a casca força `data-theme="dark"` SEMPRE (a identidade é escura por
- *      doutrina), então a moldura deixaria de ser condicional ao tema salvo
- *      do visitante — seria incondicional, e uma variante BRANCA da marca
+ *      doutrina), então qualquer tratamento condicional ao tema deixaria de ser
+ *      condicional ao tema salvo do visitante — e uma variante BRANCA da marca
  *      configurada por engano voltaria a desenhar um retângulo em branco
  *      dentro dela, sem nada visível, na PRIMEIRA tela que um cliente em
  *      potencial abre.
  *
- * O caso (3) agora mede o INVERSO do que media antes: que a fachada continua
- * SEM moldura em qualquer tema salvo, e que o `data-theme` que vale para os
- * TOKENS dela (não o do `<html>`, que ainda segue a escolha salva — é outro
- * atributo, numa árvore diferente) é sempre `"dark"`.
+ * O caso (3) mede que a fachada continua SEM moldura em qualquer tema salvo, e
+ * que o `data-theme` que vale para os TOKENS dela (não o do `<html>`, que ainda
+ * segue a escolha salva — é outro atributo, numa árvore diferente) é sempre
+ * `"dark"`. Ele segue como estava.
  *
  * ═══ A CONDIÇÃO DO DONO É MENSURÁVEL, E O CASO (6) A MEDE ═══
  *
  * "Não quebrar o que já existe" tem um sentido geométrico exato para quem NÃO
- * enviou logo: o cabeçalho da barra lateral tem de ocupar o MESMO retângulo que
- * ocupava. O caso (6) mede `getBoundingClientRect` nos dois temas e exige
- * igualdade — e grava os números em `evidence/` para que a comparação com um
- * build ANTERIOR ao #659 seja aritmética, não impressão.
+ * enviou logo: o cabeçalho da barra lateral (`h-14`, 56px) tem de ocupar o MESMO
+ * retângulo nos dois temas, e a marca do produto dentro dele também. O caso (6)
+ * mede `getBoundingClientRect` nos dois temas e exige igualdade — e grava os
+ * números em `evidence/` para que a comparação com um build anterior seja
+ * aritmética, não impressão.
+ *
+ * ═══ A LOGO É O CONTROLE DE RECOLHER, E O CASO (7) A MEDE ═══
+ *
+ * O cabeçalho da barra contém um `<button>` ("Recolher sidebar" / "Expandir
+ * sidebar", `aria-expanded`) que embrulha a marca: clicar nela recolhe (64px) ou
+ * reabre (240px) a barra, e a marca fica centralizada nos dois estados. O botão
+ * "Recolher" do rodapé deixou de existir.
  *
  * ═══ AS TRÊS SUPERFÍCIES ═══
  *
- * O #659 toca três telas, e consertar uma só devolveria o defeito nas outras
- * duas. As três são medidas aqui:
+ * A silhueta vale em duas superfícies que desenham o logo do operador, e
+ * consertar uma só devolveria o defeito na outra; a terceira (a tela de entrada)
+ * é a fronteira do caso (3):
  *
- *   1. a barra lateral do app   (`components/shell/Sidebar.tsx`)   — casos 1,2,5,6
+ *   1. a barra lateral do app   (`components/shell/Sidebar.tsx`)   — casos 1,2,5,6,7
  *   2. a tela de entrada        (`app/(public)/layout.tsx`)        — caso 3
  *   3. a PRÉVIA da tela de marca(`components/branding/CampoDeLogo.tsx`) — caso 4
  *
- * A terceira é a que mais engana: se a prévia mostrar o logo cru onde o app real
- * desenha a moldura, ela deixa de ser prévia — o operador aprova uma coisa na
- * tela de marca e recebe outra no produto.
+ * A prévia é a que mais engana: se ela mostrar o logo cru onde o app real
+ * desenha a silhueta, deixa de ser prévia — o operador aprova uma coisa na tela
+ * de marca e recebe outra no produto.
  *
  * ═══ COMO O TEMA É ESCOLHIDO (e por que de dois jeitos) ═══
  *
@@ -264,6 +281,104 @@ function fundoETransparente(cor: string): boolean {
   return c !== null && c.a === 0;
 }
 
+interface Elo {
+  readonly tag: string;
+  readonly classe: string;
+  readonly fundo: string;
+  readonly filtro: string;
+}
+
+interface Silhueta {
+  /** `getComputedStyle(<img>).filter` — `none` ou `brightness(0) invert(1)`. */
+  readonly filtro: string;
+  /** Cada ancestral entre o `<img>` (exclusive) e a raiz (exclusive). */
+  readonly ancestrais: readonly Elo[];
+  readonly caixaDoLogo: Caixa;
+  readonly caixaDaRaiz: Caixa;
+}
+
+/**
+ * Mede o que o NAVEGADOR aplicou ao logo: o `filter` do próprio `<img>` e a
+ * cadeia de ancestrais até `raiz` (um seletor: `aside` na barra, o
+ * `[data-previa-do-logo]` na prévia). A raiz fica de fora da cadeia de
+ * propósito: é ela que carrega o fundo da superfície (`bg-card`, ou a cor
+ * simulada da caixa), e esse fundo é o adversário, não o defeito.
+ *
+ * A cadeia inteira, e não só o pai: um fundo claro acrescentado em qualquer avô
+ * pintaria igual na tela, e uma asserção sobre um nível só passaria verde ao
+ * lado do defeito.
+ */
+async function medirSilhueta(logo: Locator, raiz: string): Promise<Silhueta> {
+  await expect(logo).toBeVisible({ timeout: 15_000 });
+  return logo.evaluate((el, seletor) => {
+    const caixa = (e: Element) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.x, y: r.y, largura: r.width, altura: r.height };
+    };
+    const ancestrais: { tag: string; classe: string; fundo: string; filtro: string }[] = [];
+    let no = el.parentElement;
+    while (no && !no.matches(seletor)) {
+      const cs = getComputedStyle(no);
+      ancestrais.push({
+        tag: no.tagName.toLowerCase(),
+        classe: typeof no.className === "string" ? no.className : "",
+        fundo: cs.backgroundColor,
+        filtro: cs.filter,
+      });
+      no = no.parentElement;
+    }
+    const raizEl = el.closest(seletor) ?? document.body;
+    return {
+      filtro: getComputedStyle(el).filter,
+      ancestrais,
+      caixaDoLogo: caixa(el),
+      caixaDaRaiz: caixa(raizEl),
+    };
+  }, raiz);
+}
+
+/** A silhueta: `brightness(0)` zera as cores e `invert(1)` faz o preto virar branco. */
+function ehSilhuetaBranca(filtro: string): boolean {
+  return /brightness\(0\)/.test(filtro) && /invert\(1\)/.test(filtro);
+}
+
+/**
+ * A COR que o pixel do CENTRO do logo tem de fato, depois do filtro.
+ *
+ * `getComputedStyle().filter` prova que a regra foi compilada e casou; o pixel
+ * prova que ela pintou. O screenshot do elemento vem do compositor (com filtro),
+ * e é decodificado numa aba em branco do mesmo contexto — `about:blank` não tem
+ * CSP nem origem que "contamine" o canvas, ao contrário de ler a `<img>`
+ * cross-origin (URL do Storage) direto.
+ */
+async function corDoCentro(page: Page, alvo: Locator): Promise<readonly [number, number, number]> {
+  const png = (await alvo.screenshot()).toString("base64");
+  const aux = await page.context().newPage();
+  try {
+    return await aux.evaluate(async (b64) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${b64}`;
+      await img.decode();
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data;
+      return [d[0]!, d[1]!, d[2]!] as const;
+    }, png);
+  } finally {
+    await aux.close();
+  }
+}
+
+/** Branco de verdade: os três canais no teto (a silhueta é `invert(1)` de preto puro). */
+const pixelEBranco = (c: readonly number[]): boolean => c.every((v) => v >= 240);
+
+/** O azul-marinho de `PNG_AZUL_MARINHO` (16,24,64), com folga para gerenciamento de cor. */
+const pixelEAzulMarinho = (c: readonly number[]): boolean =>
+  c[0]! <= 60 && c[1]! <= 60 && c[2]! >= 30 && c[2]! <= 110;
+
 async function temaDaPagina(page: Page): Promise<string | null> {
   return page.evaluate(() => document.documentElement.getAttribute("data-theme"));
 }
@@ -398,7 +513,7 @@ test.describe("a moldura do logo no tema escuro", () => {
     return s!;
   };
 
-  test("(1) tema ESCURO + logo ENVIADO: a barra lateral pinta a moldura clara", async ({
+  test("(1) tema ESCURO + logo ENVIADO: a barra lateral desenha a silhueta branca", async ({
     page,
   }) => {
     await loginComTotp(page, creds.users.dono!.email, secret());
@@ -415,47 +530,68 @@ test.describe("a moldura do logo no tema escuro", () => {
     expect(await temaDaPagina(page), "o <html> não ficou no tema escuro").toBe("dark");
 
     const logo = page.locator("aside img").first();
-    const m = await medirMoldura(logo);
-    anotar("1-barra-escuro.json", m);
+    const m = await medirSilhueta(logo, "aside");
+    const centro = await corDoCentro(page, logo);
+    anotar("1-barra-escuro.json", { ...m, centro });
     await page.screenshot({ path: evidencia("1-barra-escuro.png") });
 
     expect(
-      fundoEClaro(m.fundo),
-      `a moldura não foi pintada: o pai do <img> tem background-color=${m.fundo} ` +
-        `(tag=${m.tagDoPai}, classe="${m.classeDoPai}")`,
+      ehSilhuetaBranca(m.filtro),
+      `o <img> do logo não virou silhueta branca no tema escuro: filter=${m.filtro} — ` +
+        `um logo azul-marinho volta a sumir contra o fundo escuro da barra`,
     ).toBe(true);
-    expect(m.padding.every((p) => p > 0), `a moldura não tem folga: padding=${m.padding}`).toBe(
-      true,
-    );
-    expect(m.sombra, "a moldura não tem sombra").not.toBe("none");
+    // A silhueta SUBSTITUIU a moldura: nenhum ancestral entre o logo e a barra
+    // pinta fundo claro (o chip `dark:bg-white` não pode voltar em lugar nenhum).
+    const comMoldura = m.ancestrais.filter((n) => fundoEClaro(n.fundo));
+    expect(
+      comMoldura,
+      `a moldura clara voltou por trás do logo: ${JSON.stringify(comMoldura)}`,
+    ).toEqual([]);
+    // O pixel é a prova de que o filtro PINTOU: o PNG é azul-marinho sólido, e
+    // no escuro o centro dele tem de sair branco.
+    expect(
+      pixelEBranco(centro),
+      `o centro do logo não é branco no tema escuro: rgb(${centro.join(", ")}) — o filtro ` +
+        `casou no CSS mas não pintou`,
+    ).toBe(true);
 
-    // CONTENÇÃO, não proximidade: a moldura tem de ser MAIOR que o logo nos dois
-    // eixos e contê-lo. Uma moldura irmã (a sabotagem que derrubou a primeira
-    // versão da cerca unitária) teria fundo claro e não conteria nada.
-    expect(m.caixaDoPai.largura).toBeGreaterThan(m.caixaDoLogo.largura);
-    expect(m.caixaDoPai.altura).toBeGreaterThan(m.caixaDoLogo.altura);
-    expect(m.caixaDoPai.x).toBeLessThanOrEqual(m.caixaDoLogo.x);
-    expect(m.caixaDoPai.y).toBeLessThanOrEqual(m.caixaDoLogo.y);
+    // Barra ABERTA: logo com a altura de `h-11` (44px), no meio do `<aside>`.
+    expect(m.caixaDoLogo.altura, "o logo da barra aberta deixou de ter 44px de altura").toBeCloseTo(
+      44,
+      0,
+    );
+    const desvio = Math.abs(
+      m.caixaDoLogo.x + m.caixaDoLogo.largura / 2 - (m.caixaDaRaiz.x + m.caixaDaRaiz.largura / 2),
+    );
+    expect(desvio, "o logo não está centralizado na barra aberta").toBeLessThanOrEqual(2);
   });
 
-  test("(2) tema CLARO + logo ENVIADO: NÃO há moldura — as classes são `dark:`", async ({
-    page,
-  }) => {
+  test("(2) tema CLARO + logo ENVIADO: NÃO há silhueta — o filtro é `dark:`", async ({ page }) => {
     await loginComTotp(page, creds.users.dono!.email, secret());
     await page.goto("/app/inbox");
     await escolherTemaPelaTela(page, "light");
     expect(await temaDaPagina(page)).toBe("light");
 
-    const m = await medirMoldura(page.locator("aside img").first());
-    anotar("2-barra-claro.json", m);
+    const logo = page.locator("aside img").first();
+    const m = await medirSilhueta(logo, "aside");
+    const centro = await corDoCentro(page, logo);
+    anotar("2-barra-claro.json", { ...m, centro });
     await page.screenshot({ path: evidencia("2-barra-claro.png") });
 
     expect(
-      fundoETransparente(m.fundo),
-      `no tema claro o logo ganhou fundo pintado (${m.fundo}) — as classes deveriam ser só \`dark:\``,
+      m.filtro,
+      `no tema claro o logo ganhou filtro (${m.filtro}) — a silhueta deveria ser só \`dark:\``,
+    ).toBe("none");
+    // No claro a arte fica com as cores originais e nada é pintado por trás dela.
+    expect(
+      pixelEAzulMarinho(centro),
+      `no tema claro o centro do logo não é o azul-marinho da arte: rgb(${centro.join(", ")})`,
     ).toBe(true);
-    expect(m.padding, "no tema claro a moldura não pode ter folga").toEqual([0, 0, 0, 0]);
-    expect(m.sombra, "no tema claro a moldura não pode ter sombra").toBe("none");
+    const comFundo = m.ancestrais.filter((n) => !fundoETransparente(n.fundo));
+    expect(
+      comFundo,
+      `no tema claro há fundo pintado por trás do logo: ${JSON.stringify(comFundo)}`,
+    ).toEqual([]);
   });
 
   test("(3) a TELA DE ENTRADA é sempre escura e nunca desenha a moldura, em qualquer tema salvo", async ({
@@ -519,25 +655,43 @@ test.describe("a moldura do logo no tema escuro", () => {
     // As duas caixas convivem no MESMO tema real (o fundo é simulado por
     // `style`), então a condição lá é o rótulo da caixa — e é justamente por isso
     // que a prévia pode divergir do app sem nada gritar.
-    const escura = await medirMoldura(page.locator("[data-previa-do-logo='escuro'] img"));
-    const clara = await medirMoldura(page.locator("[data-previa-do-logo='claro'] img"));
-    anotar("4-previa-escura.json", escura);
-    anotar("4-previa-clara.json", clara);
+    const logoEscuro = page.locator("[data-previa-do-logo='escuro'] img");
+    const logoClaro = page.locator("[data-previa-do-logo='claro'] img");
+    const escura = await medirSilhueta(logoEscuro, "[data-previa-do-logo]");
+    const clara = await medirSilhueta(logoClaro, "[data-previa-do-logo]");
+    const centroEscuro = await corDoCentro(page, logoEscuro);
+    const centroClaro = await corDoCentro(page, logoClaro);
+    anotar("4-previa-escura.json", { ...escura, centro: centroEscuro });
+    anotar("4-previa-clara.json", { ...clara, centro: centroClaro });
     await page.screenshot({ path: evidencia("4-previa.png"), fullPage: true });
 
     expect(
-      fundoEClaro(escura.fundo),
-      `a prévia da aparência ESCURA mostra o logo cru (fundo=${escura.fundo}) — ela deixa ` +
+      ehSilhuetaBranca(escura.filtro),
+      `a prévia da aparência ESCURA mostra o logo cru (filter=${escura.filtro}) — ela deixa ` +
         `de prever o que o app desenha, e o operador aprova uma coisa e recebe outra`,
     ).toBe(true);
-    expect(escura.padding.every((p) => p > 0)).toBe(true);
     expect(
-      fundoETransparente(clara.fundo),
-      `a prévia da aparência CLARA ganhou moldura (${clara.fundo}) — o app não desenha isso`,
+      pixelEBranco(centroEscuro),
+      `o centro do logo na prévia ESCURA não é branco: rgb(${centroEscuro.join(", ")})`,
+    ).toBe(true);
+    const molduraNaPrevia = escura.ancestrais.filter((n) => fundoEClaro(n.fundo));
+    expect(
+      molduraNaPrevia,
+      `a prévia da aparência ESCURA voltou a desenhar moldura clara: ${JSON.stringify(molduraNaPrevia)}`,
+    ).toEqual([]);
+    expect(
+      clara.filtro,
+      `a prévia da aparência CLARA ganhou filtro (${clara.filtro}) — o app não desenha isso`,
+    ).toBe("none");
+    expect(
+      pixelEAzulMarinho(centroClaro),
+      `o centro do logo na prévia CLARA não é o azul-marinho da arte: rgb(${centroClaro.join(", ")})`,
     ).toBe(true);
   });
 
-  test("(5) A FRONTEIRA: no escuro, a marca do PRODUTO não recebe moldura", async ({ page }) => {
+  test("(5) A FRONTEIRA: no escuro, a marca do PRODUTO não vira silhueta nem ganha moldura", async ({
+    page,
+  }) => {
     await loginComTotp(page, creds.users.dono!.email, secret());
     // Tira o logo enviado: sem ele, e com o nome padrão, a barra cai no ramo
     // `marcaDoProduto` — o `<svg>` inline desenhado para os dois temas.
@@ -559,11 +713,13 @@ test.describe("a moldura do logo no tema escuro", () => {
       "a barra não caiu no ramo `marcaDoProduto` — sem ele não há fronteira para medir",
     ).toBeVisible({ timeout: 15_000 });
 
-    // A negação é sobre TODA a cadeia entre a marca e o `<aside>`, e não só sobre
-    // o pai: uma moldura acrescentada em qualquer avô pintaria igual na tela, e
-    // uma asserção sobre um nível só passaria verde ao lado do defeito.
+    // A negação é sobre TODA a cadeia entre a marca e o `<aside>` (a própria
+    // marca inclusive), e não só sobre o pai: um fundo claro ou um filtro
+    // acrescentado em qualquer avô pintaria igual na tela — o `filter` de um
+    // ancestral se aplica a tudo dentro dele —, e uma asserção sobre um nível só
+    // passaria verde ao lado do defeito.
     const cadeia = await marca.evaluate((el) => {
-      const saida: { tag: string; classe: string; fundo: string; padding: string }[] = [];
+      const saida: { tag: string; classe: string; fundo: string; filtro: string }[] = [];
       let no = el as HTMLElement | null;
       while (no && no.tagName.toLowerCase() !== "aside") {
         const cs = getComputedStyle(no);
@@ -571,7 +727,7 @@ test.describe("a moldura do logo no tema escuro", () => {
           tag: no.tagName.toLowerCase(),
           classe: typeof no.className === "string" ? no.className : "",
           fundo: cs.backgroundColor,
-          padding: `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`,
+          filtro: cs.filter,
         });
         no = no.parentElement;
       }
@@ -580,10 +736,16 @@ test.describe("a moldura do logo no tema escuro", () => {
     anotar("5-marca-do-produto-escuro.json", cadeia);
     await page.screenshot({ path: evidencia("5-marca-do-produto-escuro.png") });
 
+    const comFiltro = cadeia.filter((n) => n.filtro !== "none");
+    expect(
+      comFiltro,
+      `a marca do PRODUTO recebeu filtro no tema escuro — a silhueta branca apagaria as cores ` +
+        `da identidade, e quebra o visual que já existia: ${JSON.stringify(comFiltro)}`,
+    ).toEqual([]);
     const comMoldura = cadeia.filter((n) => fundoEClaro(n.fundo));
     expect(
       comMoldura,
-      `a marca do PRODUTO ganhou moldura clara no tema escuro — é o remédio dado a quem ` +
+      `a marca do PRODUTO ganhou fundo claro no tema escuro — é o remédio dado a quem ` +
         `não tem a doença, e quebra o visual que já existia: ${JSON.stringify(comMoldura)}`,
     ).toEqual([]);
   });
@@ -594,28 +756,110 @@ test.describe("a moldura do logo no tema escuro", () => {
     await loginComTotp(page, creds.users.dono!.email, secret());
     await page.goto("/app/inbox");
 
+    // A marca do produto mora dentro do botão que recolhe a barra; medir o
+    // botão é medir a marca, e ele não depende do texto acessível (que muda
+    // com o estado da barra) porque é o único `<button>` do cabeçalho.
+    const marca = (): Locator => cabecalhoDaBarra(page).locator("button").first();
+
     await escolherTemaPelaTela(page, "light");
     const claro = await medirCaixa(cabecalhoDaBarra(page));
+    const marcaClara = await medirCaixa(marca());
     await page.screenshot({ path: evidencia("6-cabecalho-claro.png") });
 
     await escolherTemaPelaTela(page, "dark");
     const escuro = await medirCaixa(cabecalhoDaBarra(page));
+    const marcaEscura = await medirCaixa(marca());
     await page.screenshot({ path: evidencia("6-cabecalho-escuro.png") });
 
-    anotar("6-cabecalho-sem-logo.json", { claro, escuro });
+    anotar("6-cabecalho-sem-logo.json", { claro, escuro, marcaClara, marcaEscura });
 
     // A igualdade é o sentido geométrico exato de "não quebra o que já existe"
-    // para quem NUNCA enviou logo: a moldura é do outro ramo, e nenhum pixel do
+    // para quem NUNCA enviou logo: a silhueta é do outro ramo, e nenhum pixel do
     // cabeçalho dessa instalação pode se mover ao trocar de tema.
     expect(
       escuro,
       `o cabeçalho da barra MUDOU de retângulo entre os temas numa instalação SEM logo ` +
         `enviado — claro=${JSON.stringify(claro)} escuro=${JSON.stringify(escuro)}`,
     ).toEqual(claro);
+    expect(
+      marcaEscura,
+      `a marca do produto MUDOU de retângulo entre os temas — ` +
+        `claro=${JSON.stringify(marcaClara)} escuro=${JSON.stringify(marcaEscura)}`,
+    ).toEqual(marcaClara);
     // E ele continua sendo o `h-14` de sempre, no topo: a igualdade acima passaria
-    // se os DOIS tivessem mudado junto.
+    // se os DOIS tivessem mudado junto. (O `px-2` e o `justify-center` do
+    // cabeçalho não entram na régua: ela mede a caixa do cabeçalho, que ocupa a
+    // barra inteira, e não o espaço interno dele.)
     expect(escuro.altura, "o cabeçalho deixou de ser `h-14` (56px)").toBe(56);
     expect(escuro.y, "o cabeçalho saiu do topo da barra").toBe(0);
+  });
+
+  test("(7) clicar na logo recolhe e reabre a barra; o botão \"Recolher\" do rodapé não existe mais", async ({
+    page,
+  }) => {
+    await loginComTotp(page, creds.users.dono!.email, secret());
+    // Logo ENVIADO de novo (o caso (5) o removeu): assim o que fica centralizado
+    // nos dois estados é o `<img>`, que muda de altura — 44px aberta, 20px recolhida.
+    await page.goto("/admin/marca");
+    await subir(page, "instalacao", {
+      nome: "logo-azul-marinho.png",
+      mime: "image/png",
+      bytes: PNG_AZUL_MARINHO,
+    });
+    await page.goto("/app/inbox");
+
+    const barra = page.locator("aside").first();
+    const logo = barra.locator("img").first();
+    const largura = async (): Promise<number> => Math.round((await medirCaixa(barra)).largura);
+    const desvioDeCentro = async (): Promise<number> => {
+      const l = await medirCaixa(logo);
+      const b = await medirCaixa(barra);
+      return Math.abs(l.x + l.largura / 2 - (b.x + b.largura / 2));
+    };
+
+    try {
+      // Estado de partida: aberta (o cookie de sidebar não persiste entre contextos).
+      await expect.poll(largura, { message: "a barra não começou aberta (240px)" }).toBe(240);
+      await expect(
+        page.getByRole("button", { name: "Expandir sidebar" }),
+        "a barra começou recolhida",
+      ).toHaveCount(0);
+      // O botão "Recolher" do rodapé foi REMOVIDO: a logo é o único controle.
+      await expect(
+        barra.getByText("Recolher", { exact: true }),
+        "voltou um texto \"Recolher\" na barra (o botão do rodapé)",
+      ).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /^Recolher$/ })).toHaveCount(0);
+      expect(await desvioDeCentro(), "logo fora do centro com a barra aberta").toBeLessThanOrEqual(2);
+
+      // 1º clique: recolhe.
+      const recolher = page.getByRole("button", { name: "Recolher sidebar" });
+      await expect(recolher).toHaveAttribute("aria-expanded", "true");
+      await recolher.click();
+      await expect.poll(largura, { message: "a barra não chegou a ~64px" }).toBe(64);
+      await expect(logo, "o logo sumiu com a barra recolhida").toBeVisible();
+      await expect
+        .poll(desvioDeCentro, { message: "o logo não ficou centralizado na barra recolhida" })
+        .toBeLessThanOrEqual(2);
+      await page.screenshot({ path: evidencia("7-recolhida.png") });
+
+      // 2º clique, no MESMO controle (agora "Expandir sidebar"): reabre.
+      const expandir = page.getByRole("button", { name: "Expandir sidebar" });
+      await expect(expandir).toHaveAttribute("aria-expanded", "false");
+      await expandir.click();
+      await expect.poll(largura, { message: "a barra não voltou a ~240px" }).toBe(240);
+      await expect(logo).toBeVisible();
+      await expect
+        .poll(desvioDeCentro, { message: "o logo não ficou centralizado na barra reaberta" })
+        .toBeLessThanOrEqual(2);
+      await expect(page.getByRole("button", { name: "Recolher sidebar" })).toBeVisible();
+      await page.screenshot({ path: evidencia("7-reaberta.png") });
+    } finally {
+      // O estado da barra vai para um cookie: se o caso estourou recolhido, o
+      // que rodar depois (na ordem `serial`) mediria uma barra de 64px.
+      const expandir = page.getByRole("button", { name: "Expandir sidebar" });
+      if (await expandir.isVisible().catch(() => false)) await expandir.click().catch(() => {});
+    }
   });
 
   /**
